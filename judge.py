@@ -7,7 +7,9 @@ import dotenv
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCaseParams
 from deepeval.test_case import LLMTestCase
-
+from connections import sf_engine
+from connections import DB, SCHEMA
+import sqlalchemy
 
 dotenv.load_dotenv()
 
@@ -16,7 +18,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 wismo_endpoint = "https://ca-odpr-eus-gt-wismo-dev.agreeableriver-391c9765.eastus.azurecontainerapps.io"
 mcp_endpoint = "https://ca-odpr-eus-gt-mcp-dev.agreeableriver-391c9765.eastus.azurecontainerapps.io/mcp"
 
-test_cases = pd.read_csv("wismo_test_cases.csv")
+# %%
+with sf_engine().connect() as conn:
+    full_table = f"{DB}.{SCHEMA}.{'wismo_overview'}"
+    sql = f" SELECT * FROM {full_table} "
+    test_cases = pd.read_sql(sql, conn)
+
+# %%
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -86,7 +94,7 @@ def evaluate_correctness(row):
 
 
 if __name__ == "__main__":
-    sampled = sample_test_cases(test_cases, cols=['IsSplitOrder', 'IsDropShip', 'IsOnBackOrder', 'IsInvoiced'])
+    sampled = sample_test_cases(test_cases, cols=['issplitorder', 'isdropship', 'isonbackorder', 'isinvoiced'])
 
     # convert order number to int
     sampled['ordernumber'] = sampled['ordernumber'].astype(int)
@@ -104,3 +112,5 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(evaluation_results)
     results_df.to_csv("evaluation_results.csv", index=False)
 
+
+# %%
